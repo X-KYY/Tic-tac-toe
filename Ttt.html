@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe - With Sound</title>
+    <style>
+        :root {
+            --primary-color: #4a6fa5;
+            --secondary-color: #ff6b6b;
+            --bg-color: #f8f9fa;
+            --text-color: #333;
+            --cell-color: #fff;
+            --border-color: #ddd;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .game-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .status {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+            color: var(--primary-color);
+            height: 24px;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .cell {
+            background-color: var(--cell-color);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 3rem;
+            font-weight: bold;
+            cursor: pointer;
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .cell:hover {
+            background-color: #f0f0f0;
+        }
+
+        .cell.x {
+            color: var(--primary-color);
+        }
+
+        .cell.o {
+            color: var(--secondary-color);
+        }
+
+        .winning-cell {
+            background-color: #e8f4ff;
+            border-color: var(--primary-color);
+            animation: pulse 0.5s ease;
+        }
+
+        .draw-cell {
+            background-color: #f8f8f8;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .sound-control {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--primary-color);
+        }
+
+        @media (max-width: 480px) {
+            .cell {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Tic Tac Toe - With Sound</h1>
+    <div class="game-container">
+        <button class="sound-control" id="soundControl">🔊</button>
+        <div class="status" id="status">Player X's turn</div>
+        <div class="board" id="board">
+            <div class="cell" data-index="0"></div>
+            <div class="cell" data-index="1"></div>
+            <div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div>
+            <div class="cell" data-index="4"></div>
+            <div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div>
+            <div class="cell" data-index="7"></div>
+            <div class="cell" data-index="8"></div>
+        </div>
+    </div>
+
+    <!-- Audio elements -->
+    <audio id="backgroundMusic" loop>
+        <source src="https://files.catbox.moe/sdnh1e.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="clickSound">
+        <source src="https://www.soundjay.com/buttons/sounds/button-09.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="winSound">
+        <source src="https://www.soundjay.com/human/sounds/applause-8.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="drawSound">
+        <source src="https://www.soundjay.com/human/sounds/applause-3.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const board = document.getElementById('board');
+            const cells = document.querySelectorAll('.cell');
+            const status = document.getElementById('status');
+            const soundControl = document.getElementById('soundControl');
+            
+            // Audio elements
+            const bgMusic = document.getElementById('backgroundMusic');
+            const clickSound = document.getElementById('clickSound');
+            const winSound = document.getElementById('winSound');
+            const drawSound = document.getElementById('drawSound');
+            
+            // Game state
+            let currentPlayer = 'X';
+            let gameState = ['', '', '', '', '', '', '', '', ''];
+            let gameActive = true;
+            let soundEnabled = true;
+            
+            const winningConditions = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+                [0, 4, 8], [2, 4, 6]             // diagonals
+            ];
+            
+            // Initialize the game
+            function initGame() {
+                cells.forEach(cell => {
+                    cell.classList.remove('x', 'o', 'winning-cell', 'draw-cell');
+                    cell.textContent = '';
+                });
+                
+                gameState = ['', '', '', '', '', '', '', '', ''];
+                currentPlayer = 'X';
+                gameActive = true;
+                status.textContent = `Player ${currentPlayer}'s turn`;
+                
+                // Start background music
+                if (soundEnabled) {
+                    bgMusic.volume = 0.3;
+                    bgMusic.play().catch(e => console.log("Autoplay prevented:", e));
+                }
+            }
+            
+            // Play sound with error handling
+            function playSound(sound) {
+                if (!soundEnabled) return;
+                
+                sound.currentTime = 0;
+                sound.play().catch(e => console.log("Sound play prevented:", e));
+            }
+            
+            // Toggle sound on/off
+            function toggleSound() {
+                soundEnabled = !soundEnabled;
+                soundControl.textContent = soundEnabled ? "🔊" : "🔇";
+                
+                if (soundEnabled) {
+                    bgMusic.play().catch(e => console.log("Play prevented:", e));
+                } else {
+                    bgMusic.pause();
+                }
+            }
+            
+            // Handle cell click
+            function handleCellClick(e) {
+                const clickedCell = e.target;
+                const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+                
+                if (gameState[clickedCellIndex] !== '' || !gameActive) {
+                    return;
+                }
+                
+                // Update game state and UI
+                gameState[clickedCellIndex] = currentPlayer;
+                clickedCell.textContent = currentPlayer;
+                clickedCell.classList.add(currentPlayer.toLowerCase());
+                
+                // Play click sound
+                playSound(clickSound);
+                
+                // Check for win or draw
+                checkResult();
+            }
+            
+            // Check game result and handle auto-reset
+            function checkResult() {
+                let roundWon = false;
+                
+                for (let i = 0; i < winningConditions.length; i++) {
+                    const [a, b, c] = winningConditions[i];
+                    
+                    if (gameState[a] === '' || gameState[b] === '' || gameState[c] === '') {
+                        continue;
+                    }
+                    
+                    if (gameState[a] === gameState[b] && gameState[b] === gameState[c]) {
+                        roundWon = true;
+                        cells[a].classList.add('winning-cell');
+                        cells[b].classList.add('winning-cell');
+                        cells[c].classList.add('winning-cell');
+                        break;
+                    }
+                }
+                
+                if (roundWon) {
+                    status.textContent = `Player ${currentPlayer} wins!`;
+                    gameActive = false;
+                    playSound(winSound);
+                    setTimeout(initGame, 2000); // Reset after 2 seconds
+                    return;
+                }
+                
+                if (!gameState.includes('')) {
+                    status.textContent = "Game ended in a draw!";
+                    gameActive = false;
+                    cells.forEach(cell => cell.classList.add('draw-cell'));
+                    playSound(drawSound);
+                    setTimeout(initGame, 2000); // Reset after 2 seconds
+                    return;
+                }
+                
+                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                status.textContent = `Player ${currentPlayer}'s turn`;
+            }
+            
+            // Event listeners
+            cells.forEach(cell => {
+                cell.addEventListener('click', handleCellClick);
+            });
+            
+            soundControl.addEventListener('click', toggleSound);
+            
+            // Initialize the game on load
+            initGame();
+        });
+    </script>
+</body>
+</html>
